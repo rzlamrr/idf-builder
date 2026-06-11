@@ -48,12 +48,12 @@ jobs:
           }
           Invoke-WebRequest `
             -Uri $asset.browser_download_url `
-            -OutFile builder.exe
+            -OutFile .\builder.exe
       
       - name: Build Archive
         shell: pwsh
         run: |
-          $builder = "builder.exe"
+          $builder = ".\builder.exe"
           if ("${{ inputs.build_all_versions }}" -eq "true") {
             & $builder `
               -c default `
