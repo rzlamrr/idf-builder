@@ -1,5 +1,4 @@
 name: Build ESP-IDF Offline Archive
-
 on:
   workflow_dispatch:
     inputs:
@@ -7,78 +6,61 @@ on:
         description: "ESP-IDF version (e.g. v5.1.2)"
         required: false
         default: "v5.3"
-
       build_all_versions:
         description: "Build all supported versions"
         required: true
-        default: false
+        default: "false"
         type: boolean
-
       python_version:
         description: "Python version for archive"
         required: true
         default: "3.11"
-
       wheel_python_versions:
         description: "Wheel Python versions"
         required: true
         default: "3.10,3.11,3.12,3.14"
-
 jobs:
   build:
     runs-on: windows-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Install uv
         shell: pwsh
         run: |
           irm https://astral.sh/uv/install.ps1 | iex
           "$env:USERPROFILE\.cargo\bin" >> $env:GITHUB_PATH
-
       - name: Verify uv
         run: uv --version
-
       - name: Download Offline Installer Builder
         shell: pwsh
         run: |
           $release = Invoke-RestMethod `
             -Uri "https://api.github.com/repos/espressif/idf-im-ui/releases/latest"
-
           $asset = $release.assets |
             Where-Object { $_.name -match "offline_installer_builder-windows-x64.*\.zip" } |
             Select-Object -First 1
-
           if (-not $asset) {
             throw "Windows builder asset not found"
           }
-
           Invoke-WebRequest `
             -Uri $asset.browser_download_url `
             -OutFile builder.zip
-
           Expand-Archive builder.zip -DestinationPath builder
-
       - name: Locate builder
         id: builder
         shell: pwsh
         run: |
           $exe = Get-ChildItem builder -Recurse -Filter *.exe |
             Select-Object -First 1
-
           if (-not $exe) {
             throw "offline_installer_builder.exe not found"
           }
-
           echo "path=$($exe.FullName)" >> $env:GITHUB_OUTPUT
-
       - name: Build Archive
         shell: pwsh
         run: |
           $builder = "${{ steps.builder.outputs.path }}"
-
           if ("${{ inputs.build_all_versions }}" -eq "true") {
             & $builder `
               -c default `
@@ -93,7 +75,6 @@ jobs:
               --python-version "${{ inputs.python_version }}" `
               --wheel-python-versions "${{ inputs.wheel_python_versions }}"
           }
-
       - name: Generate Artifact Name
         id: artifact
         shell: pwsh
@@ -105,11 +86,10 @@ jobs:
             $idf = "${{ inputs.idf_version }}".Replace(".", "-")
             $name = "offline-archive-$idf-py${{ inputs.python_version }}"
           }
-
           echo "name=$name" >> $env:GITHUB_OUTPUT
 
-    - name: Upload Archives
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ steps.artifact.outputs.name }}
-        path: archive_*.zst
+      - name: Upload Archives
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.artifact.outputs.name }}
+          path: archive_*.zst
