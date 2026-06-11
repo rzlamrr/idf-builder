@@ -41,31 +41,19 @@ jobs:
           $release = Invoke-RestMethod `
             -Uri "https://api.github.com/repos/espressif/idf-im-ui/releases/latest"
           $asset = $release.assets |
-            Where-Object { $_.name -match "offline_installer_builder-windows-x64.*\.zip" } |
+            Where-Object { $_.name -match "offline_installer_builder-windows-x64" } |
             Select-Object -First 1
           if (-not $asset) {
             throw "Windows builder asset not found"
           }
           Invoke-WebRequest `
             -Uri $asset.browser_download_url `
-            -OutFile builder.zip
-          Expand-Archive builder.zip -DestinationPath builder
-      
-      - name: Locate builder
-        id: builder
-        shell: pwsh
-        run: |
-          $exe = Get-ChildItem builder -Recurse -Filter *.exe |
-            Select-Object -First 1
-          if (-not $exe) {
-            throw "offline_installer_builder.exe not found"
-          }
-          echo "path=$($exe.FullName)" >> $env:GITHUB_OUTPUT
+            -OutFile builder.exe
       
       - name: Build Archive
         shell: pwsh
         run: |
-          $builder = "${{ steps.builder.outputs.path }}"
+          $builder = "builder.exe"
           if ("${{ inputs.build_all_versions }}" -eq "true") {
             & $builder `
               -c default `
