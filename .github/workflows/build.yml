@@ -22,6 +22,8 @@ on:
 jobs:
   build:
     runs-on: windows-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -31,10 +33,10 @@ jobs:
         run: |
           irm https://astral.sh/uv/install.ps1 | iex
           "$env:USERPROFILE\.cargo\bin" >> $env:GITHUB_PATH
-      
+
       - name: Verify uv
         run: uv --version
-      
+
       - name: Download Offline Installer Builder
         shell: pwsh
         run: |
@@ -49,7 +51,7 @@ jobs:
           Invoke-WebRequest `
             -Uri $asset.browser_download_url `
             -OutFile .\builder.exe
-      
+
       - name: Build Archive
         shell: pwsh
         run: |
@@ -68,22 +70,25 @@ jobs:
               --python-version "${{ inputs.python_version }}" `
               --wheel-python-versions "${{ inputs.wheel_python_versions }}"
           }
-      
-      - name: Generate Artifact Name
-        id: artifact
+
+      - name: Generate Release Tag
+        id: tag
         shell: pwsh
         run: |
           if ("${{ inputs.build_all_versions }}" -eq "true") {
-            $name = "offline-archive-all-py${{ inputs.python_version }}"
+            $tag = "offline-archive-all-py${{ inputs.python_version }}-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
           }
           else {
             $idf = "${{ inputs.idf_version }}".Replace(".", "-")
-            $name = "offline-archive-$idf-py${{ inputs.python_version }}"
+            $tag = "offline-archive-$idf-py${{ inputs.python_version }}-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
           }
-          echo "name=$name" >> $env:GITHUB_OUTPUT
+          echo "tag=$tag" >> $env:GITHUB_OUTPUT
 
-      - name: Upload Archives
-        uses: actions/upload-artifact@v7
+      - name: Create Release and Upload Archives
+        uses: softprops/action-gh-release@v3
         with:
-          name: ${{ steps.artifact.outputs.name }}
-          path: archive_*.zst
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: "Offline Archive ${{ steps.tag.outputs.tag }}"
+          files: archive_*.zst
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
